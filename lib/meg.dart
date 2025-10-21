@@ -121,11 +121,10 @@ void _defaultLogHandler(LogRecord record) {
 ///
 /// Custom logging can be supported by passing a [logHandler] to the handler. By default, logs are printed to stdout.
 // TODO: Add option to cache ranged (index) requests
-// TODO: Add option to handle cache invalidation for all cached resources
-// TODO: Add logging
-// TODO: Convert pipeline for seekable archives to follow normal archives and use the [SeekableRemoteArchiveFileSystem] format
-// TODO: Support pub/sub
-// TODO: Support periodic polling on cache etag
+// TODO(https://github.com/nikeokoronkwo/meg/issues/1): Add logging
+// TODO(https://github.com/nikeokoronkwo/meg/issues/5): Convert pipeline for seekable archives to follow normal archives and use the [SeekableRemoteArchiveFileSystem] format
+// TODO(https://github.com/nikeokoronkwo/meg/issues/2): Support pub/sub
+// TODO(https://github.com/nikeokoronkwo/meg/issues/3): Support periodic polling on cache etag
 Future<Handler> megHandler(
   Uri s3Uri, {
   String region = 'us-east-1',
@@ -205,14 +204,11 @@ Future<Handler> megHandler(
     endpointUrl: s3Uri.toString(),
   );
 
-  // final _archiveCache = AsyncCache(const Duration(hours: 1));
-  // final _archiveMemo = AsyncMemoizer();
   // TODO: Consider in memory archive with custom objects
   final _mainCache = Cache(cacheProvider ?? Cache.inMemoryCacheProvider(5000));
   final _archiveCache = _mainCache.withPrefix('archives');
   final _indexCache = _mainCache.withPrefix('indexes');
-  // TODO: Convert this to established, single type
-  // TODO: Or better still, use If-Not-Match requests
+  // TODO: Convert this to established, single type, or better still, use If-Not-Match requests
   final _archiveHeadCacher = CacheableMap<(String, HeadObjectOutput)>(
     const Duration(minutes: 10),
   );
@@ -256,13 +252,12 @@ Future<Handler> megHandler(
 
         if (archiveData == null) {
           // HEAD
-          // TODO: Stuff to cache:
           // 1. HEAD info
           // 2. non-seekable: Archive itself
           // 3. seekable: index of archive
           // all based on etag
 
-          // TODO: Periodic timer to HEAD and check for invalidation based on etag
+          // TODO(https://github.com/nikeokoronkwo/meg/issues/3): Periodic timer to HEAD and check for invalidation based on etag
           final cacheResult = await _archiveHeadCacher.fetch(archive, () async {
             // list objects with archive name
             final objects = await s3.listObjectsV2(
@@ -304,7 +299,7 @@ Future<Handler> megHandler(
           });
 
           if (archiveFormat is SeekableArchiveFormat && supportsRanges) {
-            // TODO: Convert to "FileSystem"
+            // TODO(https://github.com/nikeokoronkwo/meg/issues/5): Convert to "FileSystem"
             final indexData = await _indexCache[name].get(() async {
               // get index
               final indexHint = archiveFormat
