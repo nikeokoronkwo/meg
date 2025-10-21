@@ -8,15 +8,23 @@ Meg is a lightweight, simple server for creating a file server from an S3-compat
 - Supports multiple archive formats: By default, meg supports tarballs and .zip archives, but can be used to support multiple formats as well.
 
 Meg is designed to be usable standalone, as well as through a Dart API. Through the use of this API, you can:
-- Use meg with other custom
-- Configure the kind of cache to use (other than in-memory or redis)
+- Use meg with other custom archive formats by implementing [`ArchiveFormat`](./lib/src/format.dart).
+- Configure the kind of cache to use (other than in-memory or redis), logging, and more.
 
-## Using
 
+## Installing
 
 Meg can be installed as a Dart package
 ```shell
 dart pub global activate meg # Install meg
+```
+
+And you can start the server by running `meg <s3-url>`. This will start the file server at the 8080 port by default.
+
+For more information on the CLI, you can check the help information
+
+```shell
+meg --help
 ```
 
 ## Docker
@@ -66,6 +74,3 @@ void main() async {
   print(await archive.file('foo.txt').readAsBytes());
 }
 ```
-
-## Development
-You will need Dart in order to work on the given package.

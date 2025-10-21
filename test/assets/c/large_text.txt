@@ -1,0 +1,12 @@
+This is a large text file with multiple lines
+It contains various kinds of content
+Including empty lines
+
+And special characters: !@#$%^&*()
+Numbers: 1234567890
+UTF-8 characters: ñ, é, ü, ß
+Multiple paragraphs of text to test handling of larger files
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.

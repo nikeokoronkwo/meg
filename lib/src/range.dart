@@ -1,0 +1,1 @@
+typedef Range = (int, int);
