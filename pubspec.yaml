@@ -1,6 +1,6 @@
 name: meg
 description: Meg is a simple, powerful, and extensible file server for remote objects and archives
-version: 0.1.0-dev
+version: 0.1.0-wip
 
 
 executables:
