@@ -44,13 +44,13 @@ class SeekableArchive extends Archive<SeekableArchiveMetadata> {
   final ArchiveIndex index;
 
   @override
-  final SeekableArchiveFormat format;
+  SeekableArchiveFormat get format => super.format as SeekableArchiveFormat;
 
   const SeekableArchive(
     super.entries,
     this.index, {
     super.name,
-    required this.format,
+    required SeekableArchiveFormat format,
     super.comment,
   }) : super(format: format);
 }

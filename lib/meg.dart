@@ -36,8 +36,9 @@ class FileInput {
 ///
 /// For converting an archive from bytes, use [convertToFileSystem]
 FileSystem archiveToFileSystem(Archive archive) {
-  if (archive is SeekableRemoteArchive)
+  if (archive is SeekableRemoteArchive) {
     return SeekableRemoteArchiveFileSystem(archive);
+  }
   return ArchiveFileSystem(archive);
 }
 
@@ -69,10 +70,11 @@ FileSystem convertToFileSystem(
     }
   });
 
-  if (possibleFormat == null)
+  if (possibleFormat == null) {
     throw Exception(
       "Could not find any of the formats suitable for input data",
     );
+  }
 
   // convert to archive
   final archive = possibleFormat.convert(data);
@@ -190,10 +192,10 @@ Future<Handler> megHandler(
   }
 
   if (bucketOrNull == null) {
-    throw new Exception("The bucket must be provided for the given endpoint");
+    throw Exception("The bucket must be provided for the given endpoint");
   }
 
-  final String _bucket = bucketOrNull;
+  final String bucket0 = bucketOrNull;
 
   // initialise S3 endpoint
   final s3 = S3(
@@ -205,11 +207,11 @@ Future<Handler> megHandler(
   );
 
   // TODO: Consider in memory archive with custom objects
-  final _mainCache = Cache(cacheProvider ?? Cache.inMemoryCacheProvider(5000));
-  final _archiveCache = _mainCache.withPrefix('archives');
-  final _indexCache = _mainCache.withPrefix('indexes');
+  final mainCache = Cache(cacheProvider ?? Cache.inMemoryCacheProvider(5000));
+  final archiveCache = mainCache.withPrefix('archives');
+  final indexCache = mainCache.withPrefix('indexes');
   // TODO: Convert this to established, single type, or better still, use If-Not-Match requests
-  final _archiveHeadCacher = CacheableMap<(String, HeadObjectOutput)>(
+  final archiveHeadCacher = CacheableMap<(String, HeadObjectOutput)>(
     const Duration(minutes: 10),
   );
 
@@ -222,7 +224,7 @@ Future<Handler> megHandler(
     if (url.pathSegments.length == 1) {
       // serve object as is
       try {
-        final object = await s3.getObject(bucket: _bucket, key: url.path);
+        final object = await s3.getObject(bucket: bucket0, key: url.path);
 
         // TODO: cache object
 
@@ -246,7 +248,7 @@ Future<Handler> megHandler(
 
       try {
         // check cache
-        var archiveData = await _archiveCache[archive].get();
+        var archiveData = await archiveCache[archive].get();
         String? archiveNameWithExtension;
         ArchiveFormat? format;
 
@@ -258,10 +260,10 @@ Future<Handler> megHandler(
           // all based on etag
 
           // TODO(https://github.com/nikeokoronkwo/meg/issues/3): Periodic timer to HEAD and check for invalidation based on etag
-          final cacheResult = await _archiveHeadCacher.fetch(archive, () async {
+          final cacheResult = await archiveHeadCacher.fetch(archive, () async {
             // list objects with archive name
             final objects = await s3.listObjectsV2(
-              bucket: _bucket,
+              bucket: bucket0,
               prefix: archive,
             );
 
@@ -276,7 +278,7 @@ Future<Handler> megHandler(
             // check archive
             return (
               possibleObject.key!,
-              await s3.headObject(bucket: _bucket, key: possibleObject.key!),
+              await s3.headObject(bucket: bucket0, key: possibleObject.key!),
             );
           });
 
@@ -300,7 +302,7 @@ Future<Handler> megHandler(
 
           if (archiveFormat is SeekableArchiveFormat && supportsRanges) {
             // TODO(https://github.com/nikeokoronkwo/meg/issues/5): Convert to "FileSystem"
-            final indexData = await _indexCache[name].get(() async {
+            final indexData = await indexCache[name].get(() async {
               // get index
               final indexHint = archiveFormat
                   .indexHintRanges(archiveLength)
@@ -308,7 +310,7 @@ Future<Handler> megHandler(
 
               // perform range request
               final rangeData = await s3.getObject(
-                bucket: _bucket,
+                bucket: bucket0,
                 key: name,
                 range: 'bytes=${indexHint.$1}-${indexHint.$2}',
               );
@@ -331,11 +333,10 @@ Future<Handler> megHandler(
             // get offset
             final entryRange = entry.range;
             final compressionFormat = entry.compressionFormat;
-            final uncompressedSize = entry.uncompressedSize;
 
             // RANGE for item
             final itemResponse = await s3.getObject(
-              bucket: _bucket,
+              bucket: bucket0,
               key: name,
               range: 'bytes=${entryRange.$1}-${entryRange.$2}',
             );
@@ -345,7 +346,7 @@ Future<Handler> megHandler(
               itemResponse.body!,
               compressionFormat,
             );
-            final finalData = await finalArchive.data;
+            final finalData = finalArchive.data;
 
             final mime =
                 mimeResolver.lookup(filePath) ??
@@ -367,16 +368,13 @@ Future<Handler> megHandler(
           } else {
             // GET full data and set
             final archiveGetResponse = await s3.getObject(
-              bucket: _bucket,
+              bucket: bucket0,
               key: name,
             );
 
             // set cache
             final archiveBody = archiveGetResponse.body!;
-            _archiveCache[archive].set(
-              archiveBody,
-              const Duration(minutes: 30),
-            );
+            archiveCache[archive].set(archiveBody, const Duration(minutes: 30));
 
             archiveData = archiveBody;
             archiveNameWithExtension = name;
@@ -429,6 +427,5 @@ Future<Handler> megHandler(
         throw Exception("Error fetching archive or file: $e: $stack");
       }
     }
-    return Response(500, body: 'Internal Server Error');
   };
 }

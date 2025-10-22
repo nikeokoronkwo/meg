@@ -11,13 +11,13 @@ import '../meg.dart';
 abstract class ReadOnlyFileSystem extends FileSystem {}
 
 abstract class ReadOnlyFileSystemEntity implements FileSystemEntity {
-  const ReadOnlyFileSystemEntity(this.fileSystem, this.path);
+  const ReadOnlyFileSystemEntity();
 
   @override
-  final String path;
+  abstract final String path;
 
   @override
-  final ReadOnlyFileSystem fileSystem;
+  abstract final ReadOnlyFileSystem fileSystem;
 
   @override
   Future<FileSystemEntity> delete({bool recursive = false}) {
@@ -68,13 +68,13 @@ class ArchiveFileSystem<T extends ArchiveMetadata> extends ReadOnlyFileSystem {
   }
 
   @override
-  Directory directory(path) => ArchiveDirectory(this, path);
+  Directory directory(dynamic path) => ArchiveDirectory(this, path);
 
   @override
-  File file(path) => ArchiveFile(this, path);
+  File file(dynamic path) => ArchiveFile(this, path);
 
   @override
-  Link link(path) => ArchiveLink(this, path);
+  Link link(dynamic path) => ArchiveLink(this, path);
 
   @override
   Future<bool> identical(String path1, String path2) async =>
@@ -163,8 +163,9 @@ class ArchiveFileSystem<T extends ArchiveMetadata> extends ReadOnlyFileSystem {
     final filesInDir = getEntriesMatchingPrefix(path);
     if (filesInDir.isEmpty) return false;
     if (filesInDir.length == 1 &&
-        this.path.equals(filesInDir.single.path, path))
+        this.path.equals(filesInDir.single.path, path)) {
       return false;
+    }
 
     return true;
   }
@@ -184,8 +185,9 @@ class ArchiveFileSystem<T extends ArchiveMetadata> extends ReadOnlyFileSystem {
   bool isLinkSync(String path) {
     if (getEntry(path) case final entry?
         when entry is ArchiveEntryLink ||
-            entry.kind == ArchiveEntryKind.symbolicLink)
+            entry.kind == ArchiveEntryKind.symbolicLink) {
       return true;
+    }
     return false;
   }
 
@@ -193,14 +195,15 @@ class ArchiveFileSystem<T extends ArchiveMetadata> extends ReadOnlyFileSystem {
   Directory get currentDirectory => directory(cwd);
 
   @override
-  set currentDirectory(path) {
+  set currentDirectory(dynamic path) {
     String value;
     if (path is Directory) {
       value = path.path;
     } else if (path is String) {
       value = path;
-    } else
+    } else {
       throw ArgumentError("Invalid type for path: ${path?.runtimeType}");
+    }
 
     value = directory(path).resolveSymbolicLinksSync();
     // check if dir exists
@@ -215,16 +218,18 @@ class ArchiveFileSystem<T extends ArchiveMetadata> extends ReadOnlyFileSystem {
 /// This is to be used for operations on seekable archives without having the whole file in memory.
 ///
 // TODO(https://github.com/nikeokoronkwo/meg/issues/5): Loads of overrides
-class SeekableRemoteArchiveFileSystem extends ArchiveFileSystem {
-  @override
-  final SeekableRemoteArchive _archive;
+class SeekableRemoteArchiveFileSystem
+    extends ArchiveFileSystem<SeekableArchiveMetadata> {
+  final SeekableRemoteArchive _remoteArchive;
 
-  SeekableRemoteArchiveFileSystem(this._archive) : super(_archive);
+  @override
+  SeekableRemoteArchive get _archive => _remoteArchive;
+
+  SeekableRemoteArchiveFileSystem(this._remoteArchive) : super(_remoteArchive);
 }
 
 abstract class ArchiveFileSystemEntity extends ReadOnlyFileSystemEntity {
-  const ArchiveFileSystemEntity(this.fileSystem, this.path)
-    : super(fileSystem, path);
+  const ArchiveFileSystemEntity(this.fileSystem, this.path) : super();
 
   @override
   final String path;
@@ -399,7 +404,7 @@ class ArchiveDirectory extends ArchiveFileSystemEntity implements Directory {
       if (followLinks && archiveEntry.kind == ArchiveEntryKind.symbolicLink) {
         var entry = archiveEntry;
         while (entry.kind == ArchiveEntryKind.symbolicLink) {
-          var combinedPath;
+          String combinedPath;
           if (entry is ArchiveEntryLink) {
             combinedPath = fileSystem.path.join(
               fileSystem.path.dirname(path),
@@ -708,8 +713,9 @@ class ArchiveLink extends ArchiveFileSystemEntity implements Link {
       (a) => a.path == path,
     );
     if (entryOrNull case final entry?
-        when entry.kind == ArchiveEntryKind.symbolicLink)
+        when entry.kind == ArchiveEntryKind.symbolicLink) {
       return entry;
+    }
     return null;
   }
 
@@ -763,7 +769,7 @@ class ArchiveLink extends ArchiveFileSystemEntity implements Link {
       fileSystem.path.dirname(path),
       contents,
     );
-    return fileSystem.path.normalize(path);
+    return fileSystem.path.normalize(combined);
   }
 
   @override

@@ -14,10 +14,11 @@ class CacheableMap<T> {
 
   /// Performs `runOnce` on the memoizer for the given computation
   Future<T> fetch(String id, Future<T> Function() computation) {
-    if (!memoizations.containsKey(id))
+    if (!memoizations.containsKey(id)) {
       memoizations[id] = _duration == null
           ? AsyncCache<T>.ephemeral()
           : AsyncCache<T>(_duration);
+    }
 
     return memoizations[id]!.fetch(computation);
   }
