@@ -4,10 +4,26 @@ linter:
   rules:
     - always_declare_return_types
     - annotate_redeclares
+    - avoid_bool_literals_in_conditional_expressions
+    - avoid_returning_this
+    - avoid_private_typedef_functions
     - cancel_subscriptions
     - close_sinks
     - combinators_ordering
     - comment_references
-    - invalid_case_patterns
-    - one_member_abstracts
-    - only_throw_errors
+    - directives_ordering
+    - join_return_with_assignment
+    - no_runtimeType_toString
+    - prefer_const_constructors
+    - prefer_const_declarations
+    - prefer_final_locals
+    - prefer_relative_imports
+    - slash_for_doc_comments
+    - sort_pub_dependencies
+    - sort_unnamed_constructors_first
+    - type_annotate_public_apis
+    - unnecessary_lambdas
+    - unnecessary_parenthesis
+    - unreachable_from_main
+    - use_named_constants
+    - use_string_buffers
