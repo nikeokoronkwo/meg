@@ -122,7 +122,6 @@ void _defaultLogHandler(LogRecord record) {
 /// For more information on formats, check out the [ArchiveFormat] class.
 ///
 /// Custom logging can be supported by passing a [logHandler] to the handler. By default, logs are printed to stdout.
-// TODO: Add option to cache ranged (index) requests
 // TODO(https://github.com/nikeokoronkwo/meg/issues/1): Add logging
 // TODO(https://github.com/nikeokoronkwo/meg/issues/5): Convert pipeline for seekable archives to follow normal archives and use the [SeekableRemoteArchiveFileSystem] format
 // TODO(https://github.com/nikeokoronkwo/meg/issues/2): Support pub/sub
