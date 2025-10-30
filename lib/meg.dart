@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:mime/mime.dart';
 import 'package:neat_cache/cache_provider.dart';
 import 'package:neat_cache/neat_cache.dart';
+import 'package:neat_periodic_task/neat_periodic_task.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
@@ -17,6 +18,7 @@ import 'src/format/tar.dart';
 import 'src/format/zip.dart';
 import 'src/fs.dart';
 import 'src/memoizer.dart';
+import 'src/pub-sub/interface.dart';
 import 'src/utils.dart';
 
 export 'src/archive.dart';
@@ -124,8 +126,7 @@ void _defaultLogHandler(LogRecord record) {
 /// Custom logging can be supported by passing a [logHandler] to the handler. By default, logs are printed to stdout.
 // TODO(https://github.com/nikeokoronkwo/meg/issues/1): Add logging
 // TODO(https://github.com/nikeokoronkwo/meg/issues/5): Convert pipeline for seekable archives to follow normal archives and use the [SeekableRemoteArchiveFileSystem] format
-// TODO(https://github.com/nikeokoronkwo/meg/issues/2): Support pub/sub
-// TODO(https://github.com/nikeokoronkwo/meg/issues/3): Support periodic polling on cache etag
+// TODO: Replace S3 API with AWS Official Signing/Request API (see `package:aws_signature_v4` and `package:aws_common`)
 Future<Handler> megHandler(
   Uri s3Uri, {
   String region = 'us-east-1',
@@ -136,13 +137,17 @@ Future<Handler> megHandler(
   bool download = false,
   List<ArchiveFormat> supportedFormats = const [],
   Function(LogRecord)? logHandler,
+  Stream<BucketNotification>? changes,
+  bool? periodicPolling,
+  Duration? ttl,
 }) async {
   hierarchicalLoggingEnabled = true;
   logHandler ??= _defaultLogHandler;
+  periodicPolling ??= changes == null;
 
-  final logger = Logger('MEG');
-  logger.level = Level.ALL;
-  logger.onRecord.listen(logHandler);
+  final logger = Logger('MEG')
+    ..level = Level.ALL
+    ..onRecord.listen(logHandler);
 
   final archiveFormats = supportedFormats.isEmpty
       ? <ArchiveFormat>[const TarGzFormat(), const ZipFormat()]
@@ -207,12 +212,76 @@ Future<Handler> megHandler(
 
   // TODO: Consider in memory archive with custom objects
   final mainCache = Cache(cacheProvider ?? Cache.inMemoryCacheProvider(5000));
-  final archiveCache = mainCache.withPrefix('archives');
+  final archiveCache = mainCache
+      .withPrefix('archives')
+      .withTTL(ttl ?? const Duration(days: 2));
+  final storedArchives = <String>{};
+  final eTagCache = <String, String>{};
   final indexCache = mainCache.withPrefix('indexes');
   // TODO: Convert this to established, single type, or better still, use If-Not-Match requests
   final archiveHeadCacher = CacheableMap<(String, HeadObjectOutput)>(
-    const Duration(minutes: 10),
+    const Duration(seconds: 10),
   );
+
+  if (periodicPolling) {
+    final scheduler = NeatPeriodicTaskScheduler(
+      name: 'invalidate-cache',
+      interval: const Duration(seconds: 10),
+      timeout: const Duration(seconds: 6),
+      task: () async {
+        // get etags
+        if (eTagCache.isEmpty && storedArchives.isNotEmpty) {
+          // fill all etags
+          await Future.wait(
+            storedArchives.map((archive) async {
+              final response = await s3.headObject(
+                bucket: bucket0,
+                key: archive,
+              );
+
+              if (response.eTag case final eTag?) eTagCache[archive] = eTag;
+            }),
+          );
+        } else {
+          await Future.wait(
+            eTagCache.entries.map((e) async {
+              // call s3 to get if changed
+              final MapEntry(key: archive, value: eTag) = e;
+              // TODO: Try ifUnmodifiedSince
+              final response = await s3.getObject(
+                bucket: bucket0,
+                key: archive,
+                ifNoneMatch: eTag,
+              );
+
+              if (response.eTag case final newEtag? when newEtag != eTag) {
+                // invalidate cache
+                await indexCache[archive].purge();
+                if (await archiveCache[archive].get() case final _?) {
+                  await archiveCache[archive].set(response.body);
+                } else {
+                  await archiveCache[archive].purge();
+                }
+              }
+            }),
+          );
+        }
+      },
+    );
+
+    scheduler.start();
+  }
+
+  // listen to changes if any
+  changes?.listen((event) async {
+    // TODO: Question? Should we try to fetch here as well, or just invalidate cache
+    switch (event.change) {
+      case BucketChange.delete || BucketChange.modify:
+        // removed item, purge
+        await archiveCache[event.path].purge();
+        await indexCache[event.path].purge();
+    }
+  });
 
   return (Request request) async {
     final url = request.url;
@@ -316,7 +385,7 @@ Future<Handler> megHandler(
 
               // get data and parse archive index
               return rangeData.body!;
-            }, const Duration(minutes: 30));
+            }, const Duration(minutes: 1));
 
             final index = archiveFormat.convertIndex(
               Uint8List.fromList(indexData ?? []),
@@ -427,4 +496,11 @@ Future<Handler> megHandler(
       }
     }
   };
+}
+
+class HeadData {
+  final String key;
+  final String eTag;
+
+  const HeadData(this.key, this.eTag);
 }
