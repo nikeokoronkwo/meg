@@ -24,13 +24,12 @@ final ArgParser _argParser = ArgParser(allowTrailingOptions: true)
     abbr: 'p',
     help:
         'The port to use for the service. You can also override this with the MEG_PORT environment variable',
-    defaultsTo: '8080',
+    defaultsTo: Platform.environment['PORT'] ?? '8080',
   )
   ..addOption(
     'cache',
     help:
         'Type of cache to use for caching data for meg. By default, this is cached in-memory',
-    valueHelp: 'url',
     allowed: CacheKind.values.map((v) => v.name),
     allowedHelp: CacheKind.values.asNameMap().map(
       (_, v) => MapEntry(v.name, '${v.description}\nFormat: ${v.name}:<value>'),
@@ -73,12 +72,14 @@ void main(List<String> args) async {
     return;
   }
 
-  if (argResults.rest.isEmpty) {
+  if (argResults.rest.isEmpty && Platform.environment['S3_URL'] == null) {
     print('Please provide an S3 URL');
     exit(1);
   }
 
-  final s3Url = argResults.rest[0];
+  final s3Url = (argResults.rest.isNotEmpty
+      ? argResults.rest.first
+      : Platform.environment['S3_URL'])!;
   final s3Uri = Uri.tryParse(s3Url);
   if (s3Uri == null) {
     print('Invalid S3 URL: Got $s3Url');
@@ -98,7 +99,7 @@ void main(List<String> args) async {
       argResults['bucket'] as String? ?? Platform.environment['S3_BUCKET'];
   final host = argResults.wasParsed('host')
       ? argResults['host']
-      : Platform.environment['MEG_HOST'] ?? (argResults['host'] as String);
+      : Platform.environment['MEG_HOST'] ?? (argResults['host'] as String?);
   final port =
       int.tryParse(
         argResults.wasParsed('port')
@@ -133,10 +134,21 @@ void main(List<String> args) async {
     bucket: bucket,
     cacheProvider: cacheProvider,
     download: argResults['force-download'] as bool,
+    logHandler: (record) {
+      print(
+        'LOG :: [${record.time.toIso8601String()}]: [${record.level}] ${record.message} ${record.error == null ? '' : '(err: ${record.error})'}',
+      );
+    },
   );
 
   final pipeline = const Pipeline()
-      .addMiddleware(logRequests())
+      .addMiddleware(
+        logRequests(
+          logger: (msg, isError) {
+            print('REQ ${isError ? '(err) ' : ''}:: $msg');
+          },
+        ),
+      )
       .addHandler(handler);
 
   final server = await shelf_io.serve(

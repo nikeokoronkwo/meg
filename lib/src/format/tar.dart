@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+
 import 'package:archive/archive.dart' as archive;
 
 import '../archive.dart';
@@ -14,7 +15,14 @@ class TarFormat extends ArchiveFormat {
 
   @override
   Archive convert(Uint8List data) {
-    final tarArchive = archive.TarDecoder().decodeBytes(data);
+    // verify it is tar
+    final uStar = data.indexWhere((i) => i == 0x75);
+
+    if (uStar == -1) {
+      throw ArgumentError.value(data, 'The given data is an invalid tar file');
+    }
+
+    final tarArchive = archive.TarDecoder().decodeBytes(data, verify: true);
     return megArchiveFromArchive(tarArchive, format: this);
   }
 
