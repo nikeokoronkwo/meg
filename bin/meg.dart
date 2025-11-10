@@ -100,7 +100,7 @@ void main(List<String> args) async {
       argResults['bucket'] as String? ?? Platform.environment['S3_BUCKET'];
   final host = argResults.wasParsed('host')
       ? argResults['host']
-      : Platform.environment['MEG_HOST'] ?? (argResults['host'] as String);
+      : Platform.environment['MEG_HOST'] ?? (argResults['host'] as String?);
   final port =
       int.tryParse(
         argResults.wasParsed('port')
