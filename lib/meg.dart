@@ -226,8 +226,9 @@ Future<Handler> megHandler(
   if (periodicPolling) {
     final scheduler = NeatPeriodicTaskScheduler(
       name: 'invalidate-cache',
-      interval: const Duration(seconds: 10),
-      timeout: const Duration(seconds: 6),
+      interval: const Duration(seconds: 150),
+      timeout: const Duration(seconds: 15),
+      minCycle: const Duration(minutes: 1),
       task: () async {
         // get etags
         if (eTagCache.isEmpty && storedArchives.isNotEmpty) {
