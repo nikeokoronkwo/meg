@@ -73,12 +73,14 @@ void main(List<String> args) async {
     return;
   }
 
-  if (argResults.rest.isEmpty) {
+  if (argResults.rest.isEmpty && !Platform.environment.containsKey('S3_URL')) {
     print('Please provide an S3 URL');
     exit(1);
   }
 
-  final s3Url = argResults.rest[0];
+  final s3Url = Platform.environment.containsKey('S3_URL')
+      ? Platform.environment['S3_URL'] ?? argResults.rest[0]
+      : argResults.rest[0];
   final s3Uri = Uri.tryParse(s3Url);
   if (s3Uri == null) {
     print('Invalid S3 URL: Got $s3Url');
