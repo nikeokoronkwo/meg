@@ -11,8 +11,9 @@ class GzipCompressionFormat extends CompressionFormat {
   String get contentType => "application/gzip";
 
   @override
-  Uint8List convert(Uint8List data) =>
-      Uint8List.fromList(gzip.decoder.convert(data));
+  Uint8List convert(Uint8List data) {
+    return Uint8List.fromList(gzip.decode(data));
+  }
 
   @override
   String get extension => "gz";
