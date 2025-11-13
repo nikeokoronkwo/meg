@@ -89,13 +89,13 @@ FileSystem convertToFileSystem(
 /// using a specific [ArchiveFormat].
 Future<FileSystem> convertToFileSystemWithFormat(
   FileInput input,
-  ArchiveFormat format,) async {
+  ArchiveFormat format,
+) async {
   // validate format first
   if (format.magicBytes case final magicBytes?) {
     assert(
-    magicBytes == input.data.sublist(0, magicBytes.length),
-    "Invalid input data format: magic bytes do not match (expected $magicBytes, got ${input
-        .data.sublist(0, magicBytes.length)})",
+      magicBytes == input.data.sublist(0, magicBytes.length),
+      "Invalid input data format: magic bytes do not match (expected $magicBytes, got ${input.data.sublist(0, magicBytes.length)})",
     );
   }
 
@@ -142,7 +142,7 @@ Future<Handler> megHandler(
   CacheProvider<List<int>>? cacheProvider,
   bool download = false,
   List<ArchiveFormat> supportedFormats = const [],
-      void Function(LogRecord)? logHandler,
+  void Function(LogRecord)? logHandler,
   Stream<BucketNotification>? changes,
   bool? periodicPolling,
   Duration? ttl,
@@ -353,7 +353,7 @@ Future<Handler> megHandler(
               assert((objects.keyCount ?? 0) > 0, "Archive does not exist");
 
               final possibleObject = objects.contents!.firstWhere(
-                    (o) => o.key != null,
+                (o) => o.key != null,
               );
 
               logger.info(
@@ -364,8 +364,8 @@ Future<Handler> megHandler(
 
               // check archive
               return (
-              possibleObject.key!,
-              await s3.headObject(bucket: bucket0, key: possibleObject.key!),
+                possibleObject.key!,
+                await s3.headObject(bucket: bucket0, key: possibleObject.key!),
               );
             } on AssertionError catch (e, st) {
               logger.severe(
@@ -390,7 +390,8 @@ Future<Handler> megHandler(
 
           // find an archive format
           logger.info(
-              'Checking for possible archive format for the given archive');
+            'Checking for possible archive format for the given archive',
+          );
           final archiveFormat = archiveFormats.firstWhere((f) {
             if (f is DualPartArchiveFormat) {
               return f.compressionLayer.contentType == archiveType ||
@@ -426,7 +427,8 @@ Future<Handler> megHandler(
             );
 
             logger.fine(
-                'Index of archive: $index (${index.keys.length} items)');
+              'Index of archive: $index (${index.keys.length} items)',
+            );
             if (index.keys.isEmpty) {
               logger.warning('Archive is empty');
             }
@@ -436,7 +438,8 @@ Future<Handler> megHandler(
 
             if (entry == null) {
               logger.severe(
-                  'Could not find target entry $filePath in index of archive $archive');
+                'Could not find target entry $filePath in index of archive $archive',
+              );
               return Response.notFound(null);
             }
 
@@ -447,6 +450,9 @@ Future<Handler> megHandler(
             logger.info('Found entry in archive at range $entryRange');
 
             // RANGE for item
+            logger.info(
+              'Performing RANGE request for archive data ar range $entryRange',
+            );
             final itemResponse = await s3.getObject(
               bucket: bucket0,
               key: name,
@@ -459,6 +465,16 @@ Future<Handler> megHandler(
               compressionFormat,
             );
             final finalData = finalArchive.data;
+            if (finalData.isEmpty) {
+              logger.warning('Archive Data is empty');
+              if (finalArchive.metadata.uncompressedSize != 0) {
+                logger.warning(
+                  'There might have been an error during conversion of archive data: uncompressed size was not empty',
+                );
+              } else {
+                logger.warning('Archive might be empty or corrupted');
+              }
+            }
 
             final mime =
                 mimeResolver.lookup(filePath) ??
@@ -489,10 +505,7 @@ Future<Handler> megHandler(
             final archiveBody = archiveGetResponse.body!;
 
             logger.fine(
-              'Response info :: Bytes: ${archiveBody
-                  .lengthInBytes}, Encoding: ${archiveGetResponse
-                  .contentEncoding}, Type: ${archiveGetResponse
-                  .contentType}, Len: ${archiveGetResponse.contentLength}',
+              'Response info :: Bytes: ${archiveBody.lengthInBytes}, Encoding: ${archiveGetResponse.contentEncoding}, Type: ${archiveGetResponse.contentType}, Len: ${archiveGetResponse.contentLength}',
             );
             logger.info(
               'Updating Cache for archive $archive using the data from $name',
@@ -509,9 +522,7 @@ Future<Handler> megHandler(
         }
 
         logger.info(
-          'Converting archive $archive to FS using format(s): ${format != null
-              ? (format.extension, format.contentType)
-              : 'select from formats'}',
+          'Converting archive $archive to FS using format(s): ${format != null ? (format.extension, format.contentType) : 'select from formats'}',
         );
         // with the archive data, convert to filesystem
         final archiveFS = (archiveNameWithExtension != null && format != null)
@@ -523,18 +534,16 @@ Future<Handler> megHandler(
                 format,
               )
             : convertToFileSystem(
-          FileInput(
-            archiveNameWithExtension,
-            Uint8List.fromList(archiveData),
-          ),
+                FileInput(
+                  archiveNameWithExtension,
+                  Uint8List.fromList(archiveData),
+                ),
                 possibleFormats: archiveFormats,
               );
 
         logger.fine('Archive file system: $archiveFS');
 
-        if (archiveFS.currentDirectory
-            .listSync(recursive: true)
-            .isEmpty) {
+        if (archiveFS.currentDirectory.listSync(recursive: true).isEmpty) {
           logger.warning('Empty archive file system');
         }
 
@@ -547,8 +556,7 @@ Future<Handler> megHandler(
             'The file at path $filePath could not be found in $archive',
           );
           logger.info(
-            'Files available: ${archiveFS.currentDirectory.listSync(
-                recursive: true)}',
+            'Files available: ${archiveFS.currentDirectory.listSync(recursive: true)}',
           );
           return Response.notFound(null);
         }
