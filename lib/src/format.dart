@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'archive.dart';
 import 'range.dart';
 
-abstract class Format {
+sealed class Format {
   /// The file extension for this archive format
   String get extension;
 
@@ -57,8 +57,20 @@ abstract class DualPartArchiveFormat<
   U get compressionLayer;
 
   @override
+  List<int>? get magicBytes => compressionLayer.magicBytes;
+
+  @override
   Archive convert(Uint8List data) {
-    return archiveLayer.convert(compressionLayer.convert(data));
+    final decompressedData = compressionLayer.convert(data);
+
+    if (archiveLayer.magicBytes case final magicBytes?) {
+      assert(
+        magicBytes == decompressedData.sublist(0, magicBytes.length),
+        "Invalid input data format: magic bytes do not match (expected $magicBytes, got ${decompressedData.sublist(0, magicBytes.length)})",
+      );
+    }
+
+    return archiveLayer.convert(decompressedData);
   }
 
   const DualPartArchiveFormat();
