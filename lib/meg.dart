@@ -87,10 +87,10 @@ FileSystem convertToFileSystem(
 
 /// Converts an archive in bytes into its own file system for accessing invidiual files and items in the archive,
 /// using a specific [ArchiveFormat].
-Future<FileSystem> convertToFileSystemWithFormat(
+FileSystem convertToFileSystemWithFormat(
   FileInput input,
   ArchiveFormat format,
-) async {
+) {
   // validate format first
   if (format.magicBytes case final magicBytes?) {
     assert(
@@ -526,7 +526,7 @@ Future<Handler> megHandler(
         );
         // with the archive data, convert to filesystem
         final archiveFS = (archiveNameWithExtension != null && format != null)
-            ? await convertToFileSystemWithFormat(
+            ? convertToFileSystemWithFormat(
                 FileInput(
                   archiveNameWithExtension,
                   Uint8List.fromList(archiveData),

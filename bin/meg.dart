@@ -72,7 +72,7 @@ void main(List<String> args) async {
     return;
   }
 
-  if (argResults.rest.isEmpty && Platform.environment['S3_URL'] == null) {
+  if (argResults.rest.isEmpty && !Platform.environment.containsKey('S3_URL')) {
     print('Please provide an S3 URL');
     exit(1);
   }
