@@ -526,7 +526,7 @@ Future<Handler> megHandler(
         );
         // with the archive data, convert to filesystem
         final archiveFS = (archiveNameWithExtension != null && format != null)
-            ? await convertToFileSystemWithFormat(
+            ? convertToFileSystemWithFormat(
                 FileInput(
                   archiveNameWithExtension,
                   Uint8List.fromList(archiveData),
